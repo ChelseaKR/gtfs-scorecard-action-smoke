@@ -2,18 +2,25 @@ name: Verify GTFS Scorecard Action
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "31 14 * * 1"
 
 permissions:
   contents: read
+
+concurrency:
+  group: action-smoke-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   protected-release:
     name: Protected release v1.3.0
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Run GTFS Scorecard gate
         id: gate
-        uses: ChelseaKR/gtfs-scorecard@v1.3.0
+        uses: ChelseaKR/gtfs-scorecard@715b8d5cd967522702842d46ab2c3b79c1b0a781 # v1.3.0
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
@@ -36,14 +43,24 @@ jobs:
           test -s "$RESULT_JSON"
           test -s output/scorecard.html
           jq -e '.overall.score | numbers' "$RESULT_JSON" >/dev/null
+
+      - name: Retain protected-release evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: protected-release-${{ github.run_id }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 14
 
   floating-major:
     name: Floating major v1
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Run GTFS Scorecard gate
         id: gate
-        uses: ChelseaKR/gtfs-scorecard@v1
+        uses: ChelseaKR/gtfs-scorecard@1407ba42c30bfccad11602c201db23bd514ae042 # v1 resolved 2026-07-23
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
@@ -66,3 +83,12 @@ jobs:
           test -s "$RESULT_JSON"
           test -s output/scorecard.html
           jq -e '.overall.score | numbers' "$RESULT_JSON" >/dev/null
+
+      - name: Retain floating-major evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: floating-major-${{ github.run_id }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 14
