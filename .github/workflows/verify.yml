@@ -11,9 +11,14 @@ jobs:
     name: Protected release v1.3.0
     runs-on: ubuntu-latest
     steps:
+      - name: Check out smoke assertions
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
       - name: Run GTFS Scorecard gate
         id: gate
-        uses: ChelseaKR/gtfs-scorecard@v1.3.0
+        uses: ChelseaKR/gtfs-scorecard@715b8d5cd967522702842d46ab2c3b79c1b0a781 # v1.3.0
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
@@ -28,22 +33,22 @@ jobs:
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
+          RESULT_HTML: output/scorecard.html
         run: |
-          set -euo pipefail
-          test -n "$GRADE"
-          test -n "$SCORE"
-          test "$PASSED" = "true"
-          test -s "$RESULT_JSON"
-          test -s output/scorecard.html
-          jq -e '.overall.score | numbers' "$RESULT_JSON" >/dev/null
+          bash scripts/assert-scorecard-contract.sh
 
   floating-major:
     name: Floating major v1
     runs-on: ubuntu-latest
     steps:
+      - name: Check out smoke assertions
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
       - name: Run GTFS Scorecard gate
         id: gate
-        uses: ChelseaKR/gtfs-scorecard@v1
+        uses: ChelseaKR/gtfs-scorecard@1407ba42c30bfccad11602c201db23bd514ae042 # v1 resolved 2026-07-23
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
@@ -58,11 +63,6 @@ jobs:
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
+          RESULT_HTML: output/scorecard.html
         run: |
-          set -euo pipefail
-          test -n "$GRADE"
-          test -n "$SCORE"
-          test "$PASSED" = "true"
-          test -s "$RESULT_JSON"
-          test -s output/scorecard.html
-          jq -e '.overall.score | numbers' "$RESULT_JSON" >/dev/null
+          bash scripts/assert-scorecard-contract.sh
