@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: workflow-structure
+        name: GitHub Actions structure
+        entry: actionlint
+        language: system
+        pass_filenames: false
+        files: '^\.github/workflows/.*\.ya?ml$'
+      - id: workflow-security
+        name: GitHub Actions security
+        entry: zizmor --persona regular --min-severity medium --no-progress .
+        language: system
+        pass_filenames: false
+        files: '^\.github/workflows/.*\.ya?ml$'

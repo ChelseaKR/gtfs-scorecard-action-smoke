@@ -1,25 +1,160 @@
 name: Verify GTFS Scorecard Action
 
+# Downstream release evidence for the GTFS Scorecard action.
+#
+# The point of this repository is to prove the action works when consumed from
+# somewhere other than its own repository. That proof is only worth something
+# if a broken action would make it red, so every job here is written to be
+# capable of failing:
+#
+#   * The positive jobs configure real thresholds. Before, both jobs asserted
+#     `passed == "true"` while configuring no threshold at all, and the action
+#     documents `passed` as "true when scoring and every configured threshold
+#     passed" -- with none configured that is vacuously true, so the assertion
+#     could not fail (issue #5).
+#   * The negative job configures a threshold nothing can satisfy and asserts
+#     the action FAILS. If the gate ever stops gating, this is the job that
+#     notices.
+#   * `release-aliases` proves the tags resolve to the commits actually
+#     executed below, and `latest-release-tested` fails when a newer action
+#     release exists that no job here exercises (issue #6).
+
 on:
   workflow_dispatch:
+  pull_request:
+  schedule:
+    # Weekly. Release evidence that waits for someone to remember is not
+    # evidence; the last manual run before this was added was 2026-07-25.
+    - cron: "31 14 * * 1"
 
 permissions:
   contents: read
 
+concurrency:
+  group: action-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Peeled 2026-08-26. `release-aliases` re-checks these on every run and fails
+  # if either tag has moved, so they cannot drift silently.
+  V1_4_0_COMMIT: d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d
+
 jobs:
+  local-checks:
+    name: Assertion scripts and workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run the assertion suites and lint the workflow
+        shell: bash
+        run: |
+          bash tests/test-contract.sh
+          bash tests/test-release-ref.sh
+
+      # Installed directly rather than through a third-party action. The
+      # wrapper action fails on this runner inside its own dependency
+      # resolution ("No exports main defined in @actions/tool-cache"), and a
+      # repository whose whole subject is careful downstream consumption
+      # should not take a dependency it does not need. The tarball is version
+      # pinned and checksum verified against the value published in
+      # actionlint_1.7.12_checksums.txt.
+      - name: actionlint
+        shell: bash
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "${RUNNER_TEMP}/${tarball}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
+          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/${tarball}" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/${tarball}" -C "${RUNNER_TEMP}" actionlint
+          "${RUNNER_TEMP}/actionlint" -color
+
+  # Everything below executes the published action against the live public
+  # feed. Those jobs are for scheduled and manual evidence runs; a pull request
+  # gets `local-checks` above, which needs no network, no secrets, and no
+  # action execution, so it is safe on a fork.
+  release-aliases:
+    name: Public release aliases
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out alias assertions
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Verify public tags resolve to the executed commits
+        shell: bash
+        run: |
+          bash scripts/assert-release-ref.sh \
+            https://github.com/ChelseaKR/gtfs-scorecard.git \
+            v1.4.0 \
+            "${V1_4_0_COMMIT}"
+          # `v1` must point at the same commit as the current release. If it
+          # lags, consumers following the alias are getting an older action
+          # than the one this harness certifies, which is worth failing over.
+          bash scripts/assert-release-ref.sh \
+            https://github.com/ChelseaKR/gtfs-scorecard.git \
+            v1 \
+            "${V1_4_0_COMMIT}"
+
+  latest-release-tested:
+    name: Latest release is under test
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out assertions
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Fail when a newer action release is untested
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash scripts/assert-latest-release-tested.sh \
+            ChelseaKR/gtfs-scorecard \
+            "${V1_4_0_COMMIT}"
+
   protected-release:
     name: Protected release v1.4.0
+    needs: release-aliases
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
+      - name: Check out smoke assertions
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
       - name: Run GTFS Scorecard gate
         id: gate
-        uses: ChelseaKR/gtfs-scorecard@v1.4.0
+        uses: ChelseaKR/gtfs-scorecard@d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d # v1.4.0
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
           name: Unitrans downstream smoke test
           json: output/scorecard.json
           html: output/scorecard.html
+          # Lenient but real. These exercise the threshold code path without
+          # coupling the smoke to the example feed's quality: nothing grades
+          # below F, and `min-days-to-expiry: 0` fails only on a feed that has
+          # already expired. A tighter threshold would turn an ordinary feed
+          # change into a false report of an action regression.
+          min-grade: F
+          min-days-to-expiry: "0"
 
       - name: Verify outputs
         shell: bash
@@ -28,28 +163,53 @@ jobs:
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
-        run: |
-          set -euo pipefail
-          test -n "$GRADE"
-          test -n "$SCORE"
-          test "$PASSED" = "true"
-          test -s "$RESULT_JSON"
-          test -s output/scorecard.html
-          jq -e '.overall.score | numbers' "$RESULT_JSON" >/dev/null
+          RESULT_HTML: output/scorecard.html
+        run: bash scripts/assert-scorecard-contract.sh
+
+      - name: Retain protected-release evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: protected-release-${{ github.run_id }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 14
 
   floating-major:
     name: Floating major v1
+    needs: release-aliases
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
+      - name: Check out smoke assertions
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      # Deliberately NOT SHA-pinned, and this is the one place in the
+      # repository where that is correct. The job exists to verify what a
+      # consumer following `@v1` actually receives, which is exactly what the
+      # flagship README tells them to write. Pinning this reference would
+      # replace the thing under test with a copy of the job above it, and the
+      # alias would stop being tested at all.
+      #
+      # The supply-chain risk is bounded rather than ignored: `release-aliases`
+      # is a hard `needs:` dependency and fails this whole workflow unless `v1`
+      # resolves to the commit named in `V1_4_0_COMMIT` above, so what executes
+      # here is known before it runs. The job holds no secrets and only
+      # `contents: read`.
       - name: Run GTFS Scorecard gate
         id: gate
-        uses: ChelseaKR/gtfs-scorecard@v1
+        uses: ChelseaKR/gtfs-scorecard@v1 # zizmor: ignore[unpinned-uses]
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
           name: Unitrans downstream smoke test
           json: output/scorecard.json
           html: output/scorecard.html
+          min-grade: F
+          min-days-to-expiry: "0"
 
       - name: Verify outputs
         shell: bash
@@ -58,11 +218,60 @@ jobs:
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
+          RESULT_HTML: output/scorecard.html
+        run: bash scripts/assert-scorecard-contract.sh
+
+      - name: Retain floating-major evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: floating-major-${{ github.run_id }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 14
+
+  threshold-gate:
+    name: Gate fails on an unmeetable threshold
+    needs: release-aliases
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Run GTFS Scorecard gate with a threshold nothing can meet
+        id: gate
+        continue-on-error: true
+        uses: ChelseaKR/gtfs-scorecard@d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d # v1.4.0
+        with:
+          feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
+          country: US
+          name: Unitrans threshold gate check
+          json: output/scorecard.json
+          # 99999 days is roughly 273 years. No published GTFS calendar reaches
+          # it, so this threshold is unmeetable by construction rather than by
+          # a guess about how the example feed currently scores. A grade
+          # threshold would be the wrong instrument: if the feed improved, a
+          # "min-grade: A" negative test would start passing silently.
+          min-days-to-expiry: "99999"
+
+      - name: Assert the gate refused
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.gate.outcome }}
+          PASSED: ${{ steps.gate.outputs.passed }}
         run: |
           set -euo pipefail
-          test -n "$GRADE"
-          test -n "$SCORE"
-          test "$PASSED" = "true"
-          test -s "$RESULT_JSON"
-          test -s output/scorecard.html
-          jq -e '.overall.score | numbers' "$RESULT_JSON" >/dev/null
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "The action succeeded against an unmeetable threshold." >&2
+            echo "outcome=$OUTCOME passed=${PASSED:-<unset>}" >&2
+            echo "The gate is not gating; this is the defect issue #5 describes." >&2
+            exit 1
+          fi
+          # Secondary, and deliberately tolerant of an unset value: a composite
+          # action that fails partway need not publish its outputs. The step
+          # outcome above is the assertion that matters. What must never happen
+          # is a breached threshold still reporting success.
+          if [ "${PASSED:-}" = "true" ]; then
+            echo "The action failed but still reported passed=true." >&2
+            exit 1
+          fi
+          echo "Gate refused an unmeetable threshold, as it must."
