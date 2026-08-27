@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    # A new action release is not trustworthy the minute it appears. The
+    # cooldown lets a compromised or botched release be pulled before this
+    # repository opens a PR adopting it, which matters more than usual here:
+    # every action reference is SHA-pinned precisely so a mutable tag cannot
+    # decide what executes.
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
