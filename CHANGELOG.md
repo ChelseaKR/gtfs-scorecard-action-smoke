@@ -8,29 +8,30 @@ here. The format follows
 
 ### Added
 
-- **`unscorable-feed`, a second negative job.** `threshold-gate` asks whether a
-  measured feed that breaches a threshold is refused; this asks what happens
-  when there is nothing to measure. It hands the action
-  `tests/fixtures/not-a-gtfs-feed.zip` — a well-formed zip with no GTFS files
-  — with no thresholds configured, so a failure can only mean the feed could
-  not be scored, and asserts `grade`, `score` and `days-to-expiry` all came
-  back blank. A number nobody measured is worse than an error, because it
-  looks like an answer. The job first proves the fixture is still served and
-  still not a GTFS feed, so a dead link cannot keep it red while silently
-  changing what it tests. Injecting an unreadable feed was one of the four
-  fault-injection cases, and the action refused it correctly; this makes that
-  a standing assertion rather than a one-off observation.
+- **`unscorable-feed`, a second negative job — and it currently FAILS.**
+  `threshold-gate` asks whether a measured feed that breaches a threshold is
+  refused; this asks what happens when there is nothing to measure. It hands
+  the action `tests/fixtures/not-a-gtfs-feed.zip` — a well-formed zip holding
+  a single README and no GTFS files — with no thresholds configured, so a
+  failure could only mean the feed was unscorable, and asserts that `grade`,
+  `score` and `days-to-expiry` all came back blank.
 
-### Fixed
+  They did not. In [run 33585951861] the action exited 0 and published
+  `grade=F`, `score=31.3`, `passed=true`, with correctness scored **71.5**
+  because a file with no rows produces no validator errors to count, and
+  freshness and rider experience rendered a total absence of data as `0.0`.
+  `Realtime`, in the same table, correctly rendered its own absence as `--`,
+  so the vocabulary for "not measurable" exists and those categories do not
+  use it. A number that was never measured is worse than an error, because it
+  looks like an answer.
 
-- **`days-to-expiry` was the one published output nothing asserted.** The
-  action documents it as blank when unavailable, so a missing measurement
-  arriving as `0` would read as "expires today" *and* would satisfy the
-  `min-days-to-expiry: 0` threshold the positive jobs configure — nothing in
-  the workflow would have noticed. `assert-scorecard-contract.sh` now checks
-  it in both directions: a value must be an integer that matches the artifact,
-  and a blank must mean the artifact measured nothing either. A blank that
-  discards a real measurement is the same bug wearing different clothes.
+  This changelog entry, the job and its assertion are deliberately NOT merged:
+  landing them would make `main` red over a defect in
+  `ChelseaKR/gtfs-scorecard`, and relaxing the assertion to restore green
+  would bless the defect. Whether the action should refuse an unscorable feed
+  or report per-category "not measurable" is the action owner's call.
+
+[run 33585951861]: https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33585951861
 
 ### Verified
 
@@ -54,6 +55,18 @@ here. The format follows
 
 ### Fixed
 
+- **`days-to-expiry` was the one published output nothing asserted.** The
+  action publishes five outputs and the harness checked four. It documents
+  this one as blank when unavailable, so the failure to guard against is a
+  missing measurement arriving as `0` — which reads as "expires today" *and*
+  satisfies the `min-days-to-expiry: 0` threshold the positive jobs configure,
+  so nothing else in the workflow would have noticed.
+  `assert-scorecard-contract.sh` now checks it in both directions: a value must
+  be an integer that matches the artifact, and a blank must mean the artifact
+  measured nothing either. A blank that discards a real measurement is the same
+  bug wearing different clothes. `DAYS` is required-but-may-be-empty, so a job
+  that forgets to wire the output up fails rather than silently skipping the
+  check.
 - **Version comments beside SHA pins were unchecked.** This repository already
   refuses to let the action under test drift from its version comment, but
   applied no such rule to its own tooling pins — and the gap was not
