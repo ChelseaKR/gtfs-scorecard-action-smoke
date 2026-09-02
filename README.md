@@ -9,7 +9,7 @@ This is release evidence, not a health claim about the example feed.
 
 ## What the workflow verifies
 
-Five jobs, each written so that a broken action makes it red.
+Seven jobs, each written so that a broken action makes it red.
 
 | Job | What it proves |
 |---|---|
@@ -19,8 +19,9 @@ Five jobs, each written so that a broken action makes it red.
 | `floating-major` | The same feed through an unpinned `@v1`, which is what the flagship README tells consumers to write. |
 | `local-checks` | `make verify`: the assertion scripts, the pinned-version check, workflow lint and the zizmor audit. The only job a pull request runs, since it needs no secrets and no action execution. |
 | `threshold-gate` | The action **fails** when given a threshold nothing can meet. |
+| `unscorable-feed` | Handed a zip that is not a GTFS feed, the action must publish **no** grade, score or day count for something it never read. **This job is currently red**; see below. |
 
-That last job is the one that makes the rest meaningful. The action documents
+`threshold-gate` is the job that makes the rest meaningful. The action documents
 `passed` as "true when scoring and every configured threshold passed", so
 asserting `passed == "true"` while configuring no thresholds asserts nothing:
 with none configured it is vacuously true. Both jobs did exactly that until
@@ -54,6 +55,45 @@ that discards a real measurement is the same bug wearing different clothes.
 And `DAYS` is required-but-may-be-empty, so a job that forgets to wire the
 output up fails instead of quietly skipping the check.
 
+## The other question: what happens when there is nothing to measure
+
+`threshold-gate` asks whether a feed that *was* measured and breached a
+threshold is refused. `unscorable-feed` asks the complementary question, and
+the answer is currently **no**.
+
+The job hands the action `tests/fixtures/not-a-gtfs-feed.zip` — a well-formed
+zip containing a single README and no GTFS files at all — with no thresholds
+configured, so a failure could only mean the feed was unscorable. It then
+asserts that `grade`, `score` and `days-to-expiry` all came back blank.
+
+In [run 33585951861](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33585951861)
+they did not. The action exited 0 and published:
+
+```
+Overall grade: F  (31.3/100)
+Correctness       71.5
+Freshness          0.0
+Rider experience   0.0
+Realtime            --  not yet measured
+```
+
+with `passed=true`. A zip with no GTFS content scored **71.5 for
+correctness**, because a file with no rows produces no validator errors to
+count, and two categories rendered a total absence of data as `0.0` — while
+`Realtime`, in the same table, correctly rendered its own absence as `--`. The
+vocabulary for "not measurable" exists; those categories do not use it.
+
+A number that was never measured is worse than an error, because it looks like
+an answer: it renders into a report, a badge or a dashboard exactly as a real
+measurement would, and no consumer can tell the difference. That is the whole
+reason this job exists, and it belongs downstream — no job inside the action's
+own repository can ask the question from a consumer's point of view.
+
+The job first proves the fixture was actually served and is still not a GTFS
+feed. Without that, a dead link would keep it red while quietly changing what
+it tests from "the action refuses an unreadable feed" to "the action fails on
+a 404" — red for the wrong reason is its own kind of vacuous.
+
 ## Measured, not asserted
 
 "Written so that a broken action makes it red" is a claim, and a smoke test
@@ -71,6 +111,11 @@ and dispatched against the real action and the real feed.
 | `floating-major` pointed at a URL that is not a GTFS zip | [red](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584723021): the action refuses it — "GTFS feed could not be scored" — rather than publishing a plausible grade for a feed it could not read. |
 
 Four for four. The harness fails when it should.
+
+One caveat on that last row, and it turned out to matter: the action refuses a
+URL whose body is not a zip at all, but a well-formed zip containing no GTFS
+files is a different case entirely, and it is not refused. That is what
+`unscorable-feed` below found.
 
 ## Trust boundary
 
