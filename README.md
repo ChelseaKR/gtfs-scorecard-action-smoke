@@ -38,6 +38,22 @@ and `min-days-to-expiry: 0`. That exercises the threshold path without tying
 the smoke to the example feed's quality, so an ordinary feed change cannot
 masquerade as an action regression.
 
+## What a number is allowed to mean
+
+The action publishes five outputs and this harness checked four; the one it
+skipped, `days-to-expiry`, is the one most able to lie quietly. It is
+documented as blank when unavailable, so the value to guard against is a
+missing measurement arriving as `0`: that reads as "expires today", *and* it
+satisfies the `min-days-to-expiry: 0` threshold the positive jobs configure,
+so nothing else here would have caught it.
+
+`assert-scorecard-contract.sh` now checks it in both directions. A value must
+be an integer that equals the artifact's own count, not a plausible-looking
+substitute. A blank must mean the artifact measured nothing either — a blank
+that discards a real measurement is the same bug wearing different clothes.
+And `DAYS` is required-but-may-be-empty, so a job that forgets to wire the
+output up fails instead of quietly skipping the check.
+
 ## Measured, not asserted
 
 "Written so that a broken action makes it red" is a claim, and a smoke test
