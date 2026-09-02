@@ -9,7 +9,7 @@ This is release evidence, not a health claim about the example feed.
 
 ## What the workflow verifies
 
-Five jobs, each written so that a broken action makes it red.
+Seven jobs, each written so that a broken action makes it red.
 
 | Job | What it proves |
 |---|---|
@@ -19,6 +19,7 @@ Five jobs, each written so that a broken action makes it red.
 | `floating-major` | The same feed through an unpinned `@v1`, which is what the flagship README tells consumers to write. |
 | `local-checks` | `make verify`: the assertion scripts, the pinned-version check, workflow lint and the zizmor audit. The only job a pull request runs, since it needs no secrets and no action execution. |
 | `threshold-gate` | The action **fails** when given a threshold nothing can meet. |
+| `unscorable-feed` | Handed a zip that is not a GTFS feed, the action **refuses it** rather than publishing a grade, a score or a day count for something it never read. |
 
 That last job is the one that makes the rest meaningful. The action documents
 `passed` as "true when scoring and every configured threshold passed", so
@@ -37,6 +38,33 @@ The positive jobs configure deliberately lenient thresholds, `min-grade: F`
 and `min-days-to-expiry: 0`. That exercises the threshold path without tying
 the smoke to the example feed's quality, so an ordinary feed change cannot
 masquerade as an action regression.
+
+## What a number is allowed to mean
+
+`threshold-gate` asks whether a feed that *was* measured and breached a
+threshold is refused. `unscorable-feed` asks the other question: what happens
+when there is nothing to measure at all?
+
+It hands the action `tests/fixtures/not-a-gtfs-feed.zip` — a well-formed zip
+containing no GTFS files — with no thresholds configured, so a failure can
+only mean the feed could not be scored. It then asserts that `grade`, `score`
+and `days-to-expiry` all came back **blank**. A number that was never measured
+is worse than an error, because it looks like an answer: it renders into a
+report, a badge or a dashboard exactly as a real measurement would, and no
+consumer can tell the difference.
+
+The job first proves the fixture was actually served and is still not a GTFS
+feed. Without that, a dead link would keep the job red while quietly changing
+what it tests from "the action refuses an unreadable feed" to "the action
+fails on a 404".
+
+The same rule governs the positive jobs. `days-to-expiry` is documented as
+blank when unavailable, and `assert-scorecard-contract.sh` now checks it in
+both directions: a value must be an integer that matches the artifact, and a
+blank must mean the artifact measured nothing either. A missing count arriving
+as `0` would read as "expires today" *and* would satisfy the
+`min-days-to-expiry: 0` threshold those jobs configure, so nothing else here
+would have noticed it.
 
 ## Measured, not asserted
 

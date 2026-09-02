@@ -12,9 +12,10 @@ name: Verify GTFS Scorecard Action
 #     documents `passed` as "true when scoring and every configured threshold
 #     passed" -- with none configured that is vacuously true, so the assertion
 #     could not fail (issue #5).
-#   * The negative job configures a threshold nothing can satisfy and asserts
-#     the action FAILS. If the gate ever stops gating, this is the job that
-#     notices.
+#   * The negative jobs configure a threshold nothing can satisfy, and a feed
+#     that cannot be read at all, and assert the action FAILS. If the gate
+#     ever stops gating, or starts publishing a grade for a feed it never
+#     read, these are the jobs that notice.
 #   * `release-aliases` proves the tags resolve to the commits actually
 #     executed below, and `latest-release-tested` fails when a newer action
 #     release exists that no job here exercises (issue #6).
@@ -177,6 +178,7 @@ jobs:
           GRADE: ${{ steps.gate.outputs.grade }}
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
+          DAYS: ${{ steps.gate.outputs.days-to-expiry }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
           RESULT_HTML: output/scorecard.html
         run: bash scripts/assert-scorecard-contract.sh
@@ -232,6 +234,7 @@ jobs:
           GRADE: ${{ steps.gate.outputs.grade }}
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
+          DAYS: ${{ steps.gate.outputs.days-to-expiry }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
           RESULT_HTML: output/scorecard.html
         run: bash scripts/assert-scorecard-contract.sh
@@ -290,3 +293,72 @@ jobs:
             exit 1
           fi
           echo "Gate refused an unmeetable threshold, as it must."
+
+  # The second negative job, and it tests a different property from
+  # `threshold-gate`. That one asks whether a *measured* feed that breaches a
+  # threshold is refused. This one asks what happens when there is nothing to
+  # measure: handed something it cannot read, does the action say so, or does
+  # it publish a grade anyway?
+  #
+  # A number that was never measured is worse than an error, because it looks
+  # like an answer. Nothing else in this repository checks that, and no job in
+  # the action's own repository can check it from a downstream consumer's
+  # point of view.
+  unscorable-feed:
+    name: Unscorable feed is refused, not graded
+    needs: release-aliases
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out smoke assertions
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Without this, the job would still be red if the fixture URL simply
+      # 404'd -- and it would be red for the wrong reason, quietly testing
+      # "the action fails on a dead link" instead of "the action fails on a
+      # feed it cannot read". Proving the fixture is served, and is a real
+      # zip, is what keeps the assertion below about content.
+      - name: Prove the fixture is actually served
+        shell: bash
+        env:
+          FIXTURE_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tests/fixtures/not-a-gtfs-feed.zip
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "${RUNNER_TEMP}/fixture.zip" "$FIXTURE_URL"
+          if [ "$(head -c 2 "${RUNNER_TEMP}/fixture.zip")" != "PK" ]; then
+            echo "the fixture URL did not serve a zip archive" >&2
+            exit 1
+          fi
+          if unzip -l "${RUNNER_TEMP}/fixture.zip" | grep -Eq '(stops|routes|trips|agency)\.txt'; then
+            echo "the fixture has acquired GTFS files and no longer tests anything" >&2
+            exit 1
+          fi
+          echo "fixture served, is a zip, and is not a GTFS feed."
+          echo "url=$FIXTURE_URL" >>"$GITHUB_OUTPUT"
+        id: fixture
+
+      # No thresholds are configured, deliberately. A failure here can only
+      # mean the feed could not be scored; it cannot be a threshold breach
+      # wearing the same annotation.
+      - name: Run GTFS Scorecard gate against a feed that cannot be scored
+        id: gate
+        continue-on-error: true
+        uses: ChelseaKR/gtfs-scorecard@d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d # v1.4.0
+        with:
+          feed-url: ${{ steps.fixture.outputs.url }}
+          country: US
+          name: Unscorable feed check
+          json: output/scorecard.json
+
+      - name: Assert no grade was invented
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.gate.outcome }}
+          GRADE: ${{ steps.gate.outputs.grade }}
+          SCORE: ${{ steps.gate.outputs.score }}
+          DAYS: ${{ steps.gate.outputs.days-to-expiry }}
+          PASSED: ${{ steps.gate.outputs.passed }}
+        run: bash scripts/assert-unscorable.sh

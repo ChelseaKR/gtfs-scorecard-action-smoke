@@ -11,6 +11,7 @@
 # downstream behaviour.
 verify:
 	bash tests/test-contract.sh
+	bash tests/test-unscorable.sh
 	bash tests/test-release-ref.sh
 	bash tests/test-pinned-versions.sh
 	bash scripts/assert-pinned-versions.sh .github/workflows/verify.yml

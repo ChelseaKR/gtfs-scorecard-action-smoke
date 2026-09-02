@@ -6,6 +6,32 @@ here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **`unscorable-feed`, a second negative job.** `threshold-gate` asks whether a
+  measured feed that breaches a threshold is refused; this asks what happens
+  when there is nothing to measure. It hands the action
+  `tests/fixtures/not-a-gtfs-feed.zip` — a well-formed zip with no GTFS files
+  — with no thresholds configured, so a failure can only mean the feed could
+  not be scored, and asserts `grade`, `score` and `days-to-expiry` all came
+  back blank. A number nobody measured is worse than an error, because it
+  looks like an answer. The job first proves the fixture is still served and
+  still not a GTFS feed, so a dead link cannot keep it red while silently
+  changing what it tests. Injecting an unreadable feed was one of the four
+  fault-injection cases, and the action refused it correctly; this makes that
+  a standing assertion rather than a one-off observation.
+
+### Fixed
+
+- **`days-to-expiry` was the one published output nothing asserted.** The
+  action documents it as blank when unavailable, so a missing measurement
+  arriving as `0` would read as "expires today" *and* would satisfy the
+  `min-days-to-expiry: 0` threshold the positive jobs configure — nothing in
+  the workflow would have noticed. `assert-scorecard-contract.sh` now checks
+  it in both directions: a value must be an integer that matches the artifact,
+  and a blank must mean the artifact measured nothing either. A blank that
+  discards a real measurement is the same bug wearing different clothes.
+
 ### Verified
 
 - **The harness was measured rather than assumed.** "Written so that a broken
