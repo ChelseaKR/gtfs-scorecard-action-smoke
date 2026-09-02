@@ -50,32 +50,47 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run the assertion suites and lint the workflow
-        shell: bash
-        run: |
-          bash tests/test-contract.sh
-          bash tests/test-release-ref.sh
-
-      # Installed directly rather than through a third-party action. The
-      # wrapper action fails on this runner inside its own dependency
-      # resolution ("No exports main defined in @actions/tool-cache"), and a
-      # repository whose whole subject is careful downstream consumption
-      # should not take a dependency it does not need. The tarball is version
-      # pinned and checksum verified against the value published in
-      # actionlint_1.7.12_checksums.txt.
-      - name: actionlint
+      # Both linters are installed directly rather than through a wrapper
+      # action. The actionlint wrapper fails on this runner inside its own
+      # dependency resolution ("No exports main defined in
+      # @actions/tool-cache"), and a repository whose whole subject is careful
+      # downstream consumption should not take a dependency it does not need.
+      # Each tarball is version pinned and checksum verified against the value
+      # its project publishes.
+      - name: Install actionlint and zizmor
         shell: bash
         env:
           ACTIONLINT_VERSION: 1.7.12
           ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          ZIZMOR_VERSION: 1.16.3
+          ZIZMOR_SHA256: f0070985e94dd7b29e30abe249f6c7b2f14078c35a8f2de78e2d6ce89de0c132
         run: |
           set -euo pipefail
-          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          curl -fsSL -o "${RUNNER_TEMP}/${tarball}" \
-            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
-          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/${tarball}" | sha256sum -c -
-          tar -xzf "${RUNNER_TEMP}/${tarball}" -C "${RUNNER_TEMP}" actionlint
-          "${RUNNER_TEMP}/actionlint" -color
+          mkdir -p "${RUNNER_TEMP}/bin"
+
+          actionlint_tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "${RUNNER_TEMP}/${actionlint_tarball}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${actionlint_tarball}"
+          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/${actionlint_tarball}" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/${actionlint_tarball}" -C "${RUNNER_TEMP}/bin" actionlint
+
+          zizmor_tarball="zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL -o "${RUNNER_TEMP}/${zizmor_tarball}" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/${zizmor_tarball}"
+          echo "${ZIZMOR_SHA256}  ${RUNNER_TEMP}/${zizmor_tarball}" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/${zizmor_tarball}" -C "${RUNNER_TEMP}/bin" ./zizmor
+
+          echo "${RUNNER_TEMP}/bin" >>"${GITHUB_PATH}"
+
+      # `make verify` rather than a hand-copied list of its steps. CI used to
+      # inline two of the Makefile's four commands and omit zizmor entirely,
+      # so the security audit ran only on a contributor's laptop and the
+      # `zizmor: ignore[unpinned-uses]` waiver in this file was never
+      # exercised by anything that could block a merge. One gate definition,
+      # run in both places, is the only arrangement that cannot drift.
+      - name: make verify
+        shell: bash
+        run: make verify
 
   # Everything below executes the published action against the live public
   # feed. Those jobs are for scheduled and manual evidence runs; a pull request

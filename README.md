@@ -13,11 +13,11 @@ Five jobs, each written so that a broken action makes it red.
 
 | Job | What it proves |
 |---|---|
-| `release-aliases` | `v1.3.0` and `v1` still resolve to the exact commits the jobs below execute. A moved alias fails here, before anything runs. |
+| `release-aliases` | `v1.4.0` and `v1` still resolve to the exact commits the jobs below execute. A moved alias fails here, before anything runs. |
 | `latest-release-tested` | The newest published `v*` release is among the commits under test. A new release that nothing here exercises fails the run. |
 | `protected-release` | The current release, SHA-pinned, scores the feed and satisfies its configured thresholds. |
 | `floating-major` | The same feed through an unpinned `@v1`, which is what the flagship README tells consumers to write. |
-| `local-checks` | The assertion scripts and workflow lint. The only job a pull request runs, since it needs no network, no secrets and no action execution. |
+| `local-checks` | `make verify`: the assertion scripts, the pinned-version check, workflow lint and the zizmor audit. The only job a pull request runs, since it needs no secrets and no action execution. |
 | `threshold-gate` | The action **fails** when given a threshold nothing can meet. |
 
 That last job is the one that makes the rest meaningful. The action documents
@@ -38,6 +38,24 @@ and `min-days-to-expiry: 0`. That exercises the threshold path without tying
 the smoke to the example feed's quality, so an ordinary feed change cannot
 masquerade as an action regression.
 
+## Measured, not asserted
+
+"Written so that a broken action makes it red" is a claim, and a smoke test
+that cannot fail is worse than no smoke test because it manufactures
+confidence. So the claim was measured: four defects were injected one at a
+time on
+[`experiment/prove-the-smoke-can-fail`](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/commits/experiment/prove-the-smoke-can-fail)
+and dispatched against the real action and the real feed.
+
+| Injected | Result |
+|---|---|
+| `V1_4_0_COMMIT` moved to the v1.3.0 commit — the alias drift the guard exists to catch | [red](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584831710). `release-aliases`: "tag v1.4.0 resolved to d800e0b4, expected 715b8d5c". `latest-release-tested` also red. The three jobs that execute the action were **skipped**, so nothing ran against an unverified commit. |
+| `threshold-gate` given a threshold the feed meets, i.e. the gate stops gating | [red](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584723021): "The action succeeded against an unmeetable threshold … the gate is not gating." |
+| `protected-release` reads an action output that no longer exists | [red](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584723021): `GRADE` arrives empty and `${GRADE:?}` fails closed. |
+| `floating-major` pointed at a URL that is not a GTFS zip | [red](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584723021): the action refuses it — "GTFS feed could not be scored" — rather than publishing a plausible grade for a feed it could not read. |
+
+Four for four. The harness fails when it should.
+
 ## Trust boundary
 
 - Read-only repository permission, no secrets.
@@ -48,6 +66,14 @@ masquerade as an action regression.
   is bounded rather than ignored, since `release-aliases` is a hard dependency
   and fails the run unless `v1` resolves to the expected commit, so what
   executes is known before it runs. No secrets, `contents: read` only.
+- Every pin carries a version comment, and `make verify` resolves each comment
+  against the upstream tag. A 40-character hash is only reviewable through its
+  comment, and Dependabot's checkout 4.3.1 → 7.0.1 bump (#8) rewrote five
+  SHAs while leaving every `# v4` comment in place, so the pins and their
+  comments disagreed until a human caught it. That is now a check rather than
+  a hope. A reference that is *not* SHA-pinned must be annotated
+  `zizmor: ignore[unpinned-uses]`, which keeps `floating-major` an argued
+  exception and stops an unannotated one appearing beside it.
 - The example feed is public and replaceable. Its score is not a performance
   target and not an endorsement.
 
@@ -70,10 +96,14 @@ Locally:
 make verify
 ```
 
-Local verification exercises the assertion scripts against passing and
-deliberately malformed fixtures, and lints the workflow. It cannot execute
-GitHub Actions or reach the live feed, so it proves the assertions behave, not
-that the action does.
+`make verify` is the single definition of the gate: `local-checks` runs that
+exact target rather than a hand-copied list of its steps, so a green laptop
+and a green pull request mean the same thing. It exercises the assertion
+scripts against passing and deliberately malformed fixtures, resolves every
+pinned action reference against its version comment, lints the workflow and
+runs the zizmor audit. It cannot execute GitHub Actions or reach the live feed
+through the action, so it proves the assertions behave, not that the action
+does.
 
 ## When a run goes red
 
