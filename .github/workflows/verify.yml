@@ -37,7 +37,7 @@ concurrency:
 env:
   # Peeled 2026-08-26. `release-aliases` re-checks these on every run and fails
   # if either tag has moved, so they cannot drift silently.
-  V1_4_0_COMMIT: 715b8d5cd967522702842d46ab2c3b79c1b0a781
+  V1_4_0_COMMIT: d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d
 
 jobs:
   local-checks:
@@ -46,7 +46,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -88,7 +88,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check out alias assertions
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -114,7 +114,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check out assertions
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -135,7 +135,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out smoke assertions
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -183,7 +183,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out smoke assertions
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
