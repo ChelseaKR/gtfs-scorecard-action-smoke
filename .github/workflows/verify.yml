@@ -37,7 +37,7 @@ concurrency:
 env:
   # Peeled 2026-08-26. `release-aliases` re-checks these on every run and fails
   # if either tag has moved, so they cannot drift silently.
-  V1_4_0_COMMIT: d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d
+  V1_4_0_COMMIT: 715b8d5cd967522702842d46ab2c3b79c1b0a781
 
 jobs:
   local-checks:
@@ -159,7 +159,7 @@ jobs:
       - name: Verify outputs
         shell: bash
         env:
-          GRADE: ${{ steps.gate.outputs.grade-removed }}   # E3 INJECTED: output removed
+          GRADE: ${{ steps.gate.outputs.grade }}
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
@@ -203,7 +203,7 @@ jobs:
         id: gate
         uses: ChelseaKR/gtfs-scorecard@v1 # zizmor: ignore[unpinned-uses]
         with:
-          feed-url: https://raw.githubusercontent.com/ChelseaKR/gtfs-scorecard-action-smoke/main/README.md   # E4 INJECTED: not a GTFS feed
+          feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
           name: Unitrans downstream smoke test
           json: output/scorecard.json
@@ -251,7 +251,7 @@ jobs:
           # a guess about how the example feed currently scores. A grade
           # threshold would be the wrong instrument: if the feed improved, a
           # "min-grade: A" negative test would start passing silently.
-          min-days-to-expiry: "0"   # E2 INJECTED: was 99999
+          min-days-to-expiry: "99999"
 
       - name: Assert the gate refused
         shell: bash
