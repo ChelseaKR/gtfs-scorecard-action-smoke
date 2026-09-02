@@ -28,6 +28,18 @@ here. The format follows
 
 ### Fixed
 
+- **`days-to-expiry` was the one published output nothing asserted.** The
+  action publishes five outputs and the harness checked four. It documents
+  this one as blank when unavailable, so the failure to guard against is a
+  missing measurement arriving as `0` — which reads as "expires today" *and*
+  satisfies the `min-days-to-expiry: 0` threshold the positive jobs configure,
+  so nothing else in the workflow would have noticed.
+  `assert-scorecard-contract.sh` now checks it in both directions: a value must
+  be an integer that matches the artifact, and a blank must mean the artifact
+  measured nothing either. A blank that discards a real measurement is the same
+  bug wearing different clothes. `DAYS` is required-but-may-be-empty, so a job
+  that forgets to wire the output up fails rather than silently skipping the
+  check.
 - **Version comments beside SHA pins were unchecked.** This repository already
   refuses to let the action under test drift from its version comment, but
   applied no such rule to its own tooling pins — and the gap was not

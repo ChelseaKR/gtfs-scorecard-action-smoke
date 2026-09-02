@@ -177,6 +177,7 @@ jobs:
           GRADE: ${{ steps.gate.outputs.grade }}
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
+          DAYS: ${{ steps.gate.outputs.days-to-expiry }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
           RESULT_HTML: output/scorecard.html
         run: bash scripts/assert-scorecard-contract.sh
@@ -232,6 +233,7 @@ jobs:
           GRADE: ${{ steps.gate.outputs.grade }}
           SCORE: ${{ steps.gate.outputs.score }}
           PASSED: ${{ steps.gate.outputs.passed }}
+          DAYS: ${{ steps.gate.outputs.days-to-expiry }}
           RESULT_JSON: ${{ steps.gate.outputs.result-json }}
           RESULT_HTML: output/scorecard.html
         run: bash scripts/assert-scorecard-contract.sh
