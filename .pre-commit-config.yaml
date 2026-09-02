@@ -7,6 +7,16 @@ repos:
         language: system
         pass_filenames: false
         files: '^\.github/workflows/.*\.ya?ml$'
+      # Runs on exactly the commits that can introduce the defect: one that
+      # edits a workflow. A handful of `git ls-remote` calls, memoised per
+      # tag, is a cheap price for never committing a pin whose comment says
+      # something the SHA does not.
+      - id: workflow-pin-comments
+        name: GitHub Actions pins match their version comments
+        entry: bash scripts/assert-pinned-versions.sh .github/workflows/verify.yml
+        language: system
+        pass_filenames: false
+        files: '^\.github/workflows/.*\.ya?ml$'
       - id: workflow-security
         name: GitHub Actions security
         entry: zizmor --persona regular --min-severity medium --no-progress .

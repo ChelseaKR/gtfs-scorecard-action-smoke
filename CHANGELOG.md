@@ -6,8 +6,47 @@ here. The format follows
 
 ## Unreleased
 
+### Verified
+
+- **The harness was measured rather than assumed.** "Written so that a broken
+  action makes it red" had never been tested, and a smoke test that cannot
+  fail is worse than none because it manufactures confidence. Four defects
+  were injected one at a time on
+  `experiment/prove-the-smoke-can-fail` and dispatched against the real action
+  and the real feed. All four produced red, with the intended annotation:
+  moving `V1_4_0_COMMIT` to the superseded v1.3.0 commit reddened
+  `release-aliases` and `latest-release-tested` and *skipped* the three jobs
+  that execute the action ([run 33584831710]); giving `threshold-gate` a
+  threshold the feed meets reddened it with "the gate is not gating"; reading
+  a removed action output reddened `protected-release` at `${GRADE:?}`; and
+  pointing `floating-major` at a URL that is not a GTFS zip made the action
+  refuse it rather than publish a plausible grade for a feed it could not read
+  ([run 33584723021]). The evidence table is in the README.
+
+[run 33584831710]: https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584831710
+[run 33584723021]: https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584723021
+
 ### Fixed
 
+- **Version comments beside SHA pins were unchecked.** This repository already
+  refuses to let the action under test drift from its version comment, but
+  applied no such rule to its own tooling pins — and the gap was not
+  hypothetical: Dependabot's checkout 4.3.1 → 7.0.1 bump (#8) rewrote five
+  SHAs and left every `# v4` comment behind, so each pin and its comment
+  disagreed until a human noticed. `scripts/assert-pinned-versions.sh`
+  resolves every comment against the upstream tag and fails when they
+  disagree, when a pin carries no comment at all, or when a reference is not
+  SHA-pinned without the `zizmor: ignore[unpinned-uses]` annotation that marks
+  `floating-major`'s alias as an argued exception. A remote it cannot reach is
+  reported as `UNVERIFIED`, never as "that tag does not exist": a failed read
+  is not a finding.
+- **CI ran a hand-copied subset of the declared gate.** `local-checks` inlined
+  two of the Makefile's commands and omitted zizmor entirely, so the security
+  audit ran only on a contributor's laptop and the `zizmor: ignore` waiver in
+  the workflow was never exercised by anything that could block a merge. CI
+  now installs both linters — each a version-pinned, checksum-verified release
+  tarball — and runs `make verify` itself, so there is one gate definition
+  instead of two that can drift.
 - **The smoke test could not fail on a gating regression.** Both jobs asserted
   `passed == "true"` while configuring no threshold, and the action defines
   `passed` as "true when scoring and every configured threshold passed", which
