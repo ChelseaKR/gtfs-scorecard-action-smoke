@@ -18,3 +18,12 @@ Before opening a pull request:
 Do not weaken a failing assertion merely to restore green status. Determine
 whether the public feed changed, the action regressed, or the expected release
 revision moved, and preserve the run URL and artifacts in the pull request.
+
+## Commercial solicitation
+
+Issues here are not open to bids. They are design records — written so a decision is
+reconstructable later — not scope documents for outside quoting, and unsolicited offers to
+implement one for a fee will be declined.
+
+Contributions through the normal fork-and-PR process are welcome, and `good first issue` is the
+place to start.
