@@ -8,7 +8,7 @@
 # reference says what it does, that the workflow is structurally valid, and
 # that it carries no known Actions security smell. It cannot execute GitHub
 # Actions or reach the live feed, so the hosted run stays authoritative for
-# downstream behaviour.
+# downstream behavior.
 verify:
 	bash tests/test-contract.sh
 	bash tests/test-release-ref.sh

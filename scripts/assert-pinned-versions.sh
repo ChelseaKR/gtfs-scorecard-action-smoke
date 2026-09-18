@@ -124,7 +124,7 @@ resolve_tag() {
     fi
   fi
 
-  # Never memoise a transport failure as a verdict; a later attempt may reach
+  # Never memoize a transport failure as a verdict; a later attempt may reach
   # the remote, and a cached `unreachable` would turn one flaky round trip
   # into a confident answer about every other reference to the same tag.
   if [ "$RESOLVED_STATUS" != unreachable ]; then
