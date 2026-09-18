@@ -9,7 +9,7 @@ remote_repo="$root/remote.git"
 git init -q "$source_repo"
 git -C "$source_repo" config user.name Test
 git -C "$source_repo" config user.email test@example.invalid
-# Neutralise the developer's global signing config inside the fixture. With a
+# Neutralize the developer's global signing config inside the fixture. With a
 # global `tag.gpgsign = true` -- which anyone who signs release tags will have
 # -- `git tag lightweight` becomes a signed tag and git rejects it with
 # "fatal: no tag message?", so the lightweight case below could not be built

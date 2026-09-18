@@ -18,7 +18,7 @@ Report vulnerabilities in this repository through
 [private vulnerability reporting](https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/security/advisories/new).
 Do not include secrets, exploit details, or sensitive URLs in a public issue.
 
-Expect acknowledgement within 72 hours and, for high-severity findings, a fix
+Expect acknowledgment within 72 hours and, for high-severity findings, a fix
 or concrete remediation plan within 14 days.
 
 ## Response
