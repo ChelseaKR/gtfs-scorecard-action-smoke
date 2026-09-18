@@ -6,6 +6,33 @@ here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **`unscorable-feed`, a second negative job — and it currently FAILS.**
+  `threshold-gate` asks whether a measured feed that breaches a threshold is
+  refused; this asks what happens when there is nothing to measure. It hands
+  the action `tests/fixtures/not-a-gtfs-feed.zip` — a well-formed zip holding
+  a single README and no GTFS files — with no thresholds configured, so a
+  failure could only mean the feed was unscorable, and asserts that `grade`,
+  `score` and `days-to-expiry` all came back blank.
+
+  They did not. In [run 33585951861] the action exited 0 and published
+  `grade=F`, `score=31.3`, `passed=true`, with correctness scored **71.5**
+  because a file with no rows produces no validator errors to count, and
+  freshness and rider experience rendered a total absence of data as `0.0`.
+  `Realtime`, in the same table, correctly rendered its own absence as `--`,
+  so the vocabulary for "not measurable" exists and those categories do not
+  use it. A number that was never measured is worse than an error, because it
+  looks like an answer.
+
+  This changelog entry, the job and its assertion are deliberately NOT merged:
+  landing them would make `main` red over a defect in
+  `ChelseaKR/gtfs-scorecard`, and relaxing the assertion to restore green
+  would bless the defect. Whether the action should refuse an unscorable feed
+  or report per-category "not measurable" is the action owner's call.
+
+[run 33585951861]: https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33585951861
+
 ### Verified
 
 - **The harness was measured rather than assumed.** "Written so that a broken
