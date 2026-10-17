@@ -191,4 +191,15 @@ if [ "$calls" -ne 1 ]; then
   exit 1
 fi
 
+# 14. An action in a subdirectory resolves its tag against the repository
+#     that holds it. `github/codeql-action/upload-sarif` is the real case: the
+#     tag lives on `github/codeql-action`, and treating the whole path as a
+#     repository reported a correct pin as an unreachable remote.
+workflow "$root/subpath.yml" "actions/checkout/subdir@${head_commit} # v7.0.1"
+check "$root/subpath.yml" >/dev/null
+
+workflow "$root/subpath-lying.yml" "actions/checkout/subdir@${head_commit} # v4.3.1"
+expect_fail "a subdirectory action whose comment names a different commit" \
+  "$root/subpath-lying.yml" "the comment says v4.3.1"
+
 printf 'pinned-version assertions fail closed\n'

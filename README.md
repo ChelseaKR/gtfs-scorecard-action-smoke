@@ -1,5 +1,7 @@
 # GTFS Scorecard Action smoke test
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ChelseaKR/gtfs-scorecard-action-smoke/badge)](https://scorecard.dev/viewer/?uri=github.com/ChelseaKR/gtfs-scorecard-action-smoke)
+
 This repository is a downstream consumer of the
 [GTFS Scorecard GitHub Action](https://github.com/ChelseaKR/gtfs-scorecard).
 It exists to prove the action works when consumed from somewhere other than
@@ -90,6 +92,13 @@ Four for four. The harness fails when it should.
   a hope. A reference that is *not* SHA-pinned must be annotated
   `zizmor: ignore[unpinned-uses]`, which keeps `floating-major` an argued
   exception and stops an unannotated one appearing beside it.
+- The repository's own supply-chain posture is measured, not just described.
+  `scorecard.yml` runs [OpenSSF Scorecard](https://scorecard.dev) on every
+  push to `main`, weekly, and on branch-protection changes, publishes the
+  result behind the badge above, and uploads the findings to code scanning.
+  Pinned-Dependencies is expected to flag the `@v1` reference in
+  `floating-major`; that finding is the visible record of the exception
+  argued above, and it is left standing rather than dismissed.
 - The example feed is public and replaceable. Its score is not a performance
   target and not an endorsement.
 
