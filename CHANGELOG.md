@@ -6,6 +6,18 @@ here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **OpenSSF Scorecard for this repository.** `scorecard.yml` scores the
+  harness itself (branch protection, token permissions, pinned dependencies,
+  update tooling) on every push to `main`, weekly, and on branch-protection
+  changes. It publishes to the public Scorecard API via OIDC, so no token is
+  stored, and uploads SARIF to code scanning. The README carries the badge.
+  Its pins go through the same version-comment check as `verify.yml`, in both
+  `make verify` and the pre-commit hook. Pinned-Dependencies will flag the
+  deliberate `@v1` in `floating-major`, and that finding is meant to stay
+  visible.
+
 ### Verified
 
 - **The harness was measured rather than assumed.** "Written so that a broken
@@ -27,6 +39,13 @@ here. The format follows
 [run 33584723021]: https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33584723021
 
 ### Fixed
+
+- **`assert-pinned-versions.sh` could not check an action in a
+  subdirectory.** It handed git the whole `uses:` path, so
+  `github/codeql-action/upload-sarif` asked for a repository that does not
+  exist and a correct pin came back as "could not reach the remote". Tags are
+  now resolved against the owning repository, the first two path segments,
+  and a fixture covers both a correct and a mismatched sub-path pin.
 
 - **`days-to-expiry` was the one published output nothing asserted.** The
   action publishes five outputs and the harness checked four. It documents

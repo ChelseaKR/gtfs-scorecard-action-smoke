@@ -13,7 +13,7 @@ repos:
       # something the SHA does not.
       - id: workflow-pin-comments
         name: GitHub Actions pins match their version comments
-        entry: bash scripts/assert-pinned-versions.sh .github/workflows/verify.yml
+        entry: bash scripts/assert-pinned-versions.sh .github/workflows/verify.yml .github/workflows/scorecard.yml
         language: system
         pass_filenames: false
         files: '^\.github/workflows/.*\.ya?ml$'

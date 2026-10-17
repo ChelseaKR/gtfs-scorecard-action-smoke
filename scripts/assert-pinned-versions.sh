@@ -169,6 +169,16 @@ for file in "${files[@]}"; do
     ref=${reference##*@}
     checked=$((checked + 1))
 
+    # An action may live in a subdirectory (`github/codeql-action/upload-sarif`),
+    # but its tags belong to the repository, which is the first two path
+    # segments. Asking git for the full path asks for a repository that does
+    # not exist, and the resulting failure would be reported as an unreachable
+    # remote: a misread presented as a network problem.
+    owner=${repository%%/*}
+    name=${repository#*/}
+    name=${name%%/*}
+    upstream="${owner}/${name}"
+
     if ! [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
       if [[ "$comment" == *"zizmor: ignore[unpinned-uses]"* ]]; then
         printf '%s@%s is deliberately unpinned (annotated).\n' "$repository" "$ref"
@@ -187,7 +197,7 @@ for file in "${files[@]}"; do
       continue
     fi
 
-    resolve_tag "$repository" "$tag"
+    resolve_tag "$upstream" "$tag"
     case "$RESOLVED_STATUS" in
       unreachable)
         # Reported as an unverified reference rather than a bad one: the read

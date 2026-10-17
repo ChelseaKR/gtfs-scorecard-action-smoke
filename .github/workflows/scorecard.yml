@@ -1,0 +1,72 @@
+name: OpenSSF Scorecard
+
+# Supply-chain posture for this repository itself: branch protection, token
+# permissions, pinned dependencies, dependency update tooling, and the rest of
+# the OpenSSF Scorecard checks. Results go to the public Scorecard API (the
+# README badge reads from there) and to this repository's code-scanning tab.
+#
+# This is about the harness, not the action under test. `verify.yml` proves
+# the GTFS Scorecard action behaves; this proves the repository vouching for it
+# is itself configured so that a supply-chain change cannot slip in unnoticed.
+#
+# Expect Pinned-Dependencies to flag `floating-major` in `verify.yml`. That
+# `@v1` reference is unpinned on purpose, because the alias is the thing under
+# test; the argument is written next to it. The finding is the honest record
+# of that trade, so it stays visible rather than being dismissed here.
+#
+# Public repository, so no PAT is needed: `publish_results: true`
+# authenticates with OIDC (`id-token: write`) and the default token covers the
+# repository reads. Scorecard verifies this workflow before accepting
+# published results, which is why it has no `run:` steps and no top-level
+# `env:`; adding either makes publishing fail.
+on:
+  branch_protection_rule:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Weekly. Scorecard results drift with repository settings (branch
+    # protection, default token permissions), not only with commits.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Upload the SARIF results to this repository's code-scanning tab.
+      security-events: write
+      # OIDC identity for `publish_results`, so no PAT is stored anywhere.
+      id-token: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Retain Scorecard results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scorecard-${{ github.run_id }}
+          path: results.sarif
+          retention-days: 14
+
+      - name: Upload SARIF results to code scanning
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        with:
+          sarif_file: results.sarif

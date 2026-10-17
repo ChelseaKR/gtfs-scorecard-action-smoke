@@ -13,6 +13,6 @@ verify:
 	bash tests/test-contract.sh
 	bash tests/test-release-ref.sh
 	bash tests/test-pinned-versions.sh
-	bash scripts/assert-pinned-versions.sh .github/workflows/verify.yml
+	bash scripts/assert-pinned-versions.sh .github/workflows/verify.yml .github/workflows/scorecard.yml
 	actionlint
 	zizmor --persona regular --min-severity medium --no-progress .
