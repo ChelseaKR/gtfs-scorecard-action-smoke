@@ -15,7 +15,7 @@ Five jobs, each written so that a broken action makes it red.
 
 | Job | What it proves |
 |---|---|
-| `release-aliases` | `v1.4.0` and `v1` still resolve to the exact commits the jobs below execute. A moved alias fails here, before anything runs. |
+| `release-aliases` | `v1.6.1` and `v1` still resolve to the exact commits the jobs below execute. A moved alias fails here, before anything runs. |
 | `latest-release-tested` | The newest published `v*` release is among the commits under test. A new release that nothing here exercises fails the run. |
 | `protected-release` | The current release, SHA-pinned, scores the feed and satisfies its configured thresholds. |
 | `floating-major` | The same feed through an unpinned `@v1`, which is what the flagship README tells consumers to write. |

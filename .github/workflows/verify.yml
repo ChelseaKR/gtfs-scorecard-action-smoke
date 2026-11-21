@@ -35,9 +35,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Peeled 2026-08-26. `release-aliases` re-checks these on every run and fails
-  # if either tag has moved, so they cannot drift silently.
-  V1_4_0_COMMIT: d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d
+  # The commit v1.6.1 peels to. `release-aliases` re-checks it on every run and
+  # fails if v1.6.1 or v1 has moved, so it cannot drift silently. v1.4.0
+  # (d800e0b4) was the pin until v1 moved past it on 2026-10-09.
+  V1_6_1_COMMIT: 7da2efdfe0be67d0e6a530f8e04bdfc665c826e0
 
 jobs:
   local-checks:
@@ -112,15 +113,15 @@ jobs:
         run: |
           bash scripts/assert-release-ref.sh \
             https://github.com/ChelseaKR/gtfs-scorecard.git \
-            v1.4.0 \
-            "${V1_4_0_COMMIT}"
+            v1.6.1 \
+            "${V1_6_1_COMMIT}"
           # `v1` must point at the same commit as the current release. If it
           # lags, consumers following the alias are getting an older action
           # than the one this harness certifies, which is worth failing over.
           bash scripts/assert-release-ref.sh \
             https://github.com/ChelseaKR/gtfs-scorecard.git \
             v1 \
-            "${V1_4_0_COMMIT}"
+            "${V1_6_1_COMMIT}"
 
   latest-release-tested:
     name: Latest release is under test
@@ -140,10 +141,10 @@ jobs:
         run: |
           bash scripts/assert-latest-release-tested.sh \
             ChelseaKR/gtfs-scorecard \
-            "${V1_4_0_COMMIT}"
+            "${V1_6_1_COMMIT}"
 
   protected-release:
-    name: Protected release v1.4.0
+    name: Protected release v1.6.1
     needs: release-aliases
     if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
@@ -156,7 +157,7 @@ jobs:
 
       - name: Run GTFS Scorecard gate
         id: gate
-        uses: ChelseaKR/gtfs-scorecard@d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d # v1.4.0
+        uses: ChelseaKR/gtfs-scorecard@7da2efdfe0be67d0e6a530f8e04bdfc665c826e0 # v1.6.1
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
@@ -212,7 +213,7 @@ jobs:
       #
       # The supply-chain risk is bounded rather than ignored: `release-aliases`
       # is a hard `needs:` dependency and fails this whole workflow unless `v1`
-      # resolves to the commit named in `V1_4_0_COMMIT` above, so what executes
+      # resolves to the commit named in `V1_6_1_COMMIT` above, so what executes
       # here is known before it runs. The job holds no secrets and only
       # `contents: read`.
       - name: Run GTFS Scorecard gate
@@ -257,7 +258,7 @@ jobs:
       - name: Run GTFS Scorecard gate with a threshold nothing can meet
         id: gate
         continue-on-error: true
-        uses: ChelseaKR/gtfs-scorecard@d800e0b4f30c55cb9dce80b4c7dbb08abf3fe61d # v1.4.0
+        uses: ChelseaKR/gtfs-scorecard@7da2efdfe0be67d0e6a530f8e04bdfc665c826e0 # v1.6.1
         with:
           feed-url: https://unitrans.ucdavis.edu/media/gtfs/Unitrans_GTFS.zip
           country: US
