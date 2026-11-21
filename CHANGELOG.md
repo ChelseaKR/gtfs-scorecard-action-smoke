@@ -18,6 +18,24 @@ here. The format follows
   deliberate `@v1` in `floating-major`, and that finding is meant to stay
   visible.
 
+- **`unscorable-feed`, a second negative job.** `threshold-gate` asks
+  whether a measured feed that breaches a threshold is refused; this asks what
+  happens when there is nothing to measure. It hands the action
+  `tests/fixtures/not-a-gtfs-feed.zip` — a well-formed zip holding a single
+  README and no GTFS files — with no thresholds configured, so a failure can
+  only mean the feed was unscorable, and asserts that `grade`, `score` and
+  `days-to-expiry` all came back blank. A number that was never measured is
+  worse than an error, because it looks like an answer.
+
+  Against v1.4.0 it failed: in [run 33585951861] the action exited 0 and
+  published `grade=F`, `score=31.3`, `passed=true`, with correctness scored
+  **71.5** because a file with no rows produces no validator errors to count.
+  v1.5.0 began refusing an archive with no stops and no trips, and v1.6.1
+  (ChelseaKR/gtfs-scorecard#601) stops a refused feed from reporting an
+  earlier step's grade from the same job. The job runs the v1.6.1 pin.
+
+[run 33585951861]: https://github.com/ChelseaKR/gtfs-scorecard-action-smoke/actions/runs/33585951861
+
 ### Changed
 
 - **The harness tests v1.6.1.** `protected-release`, `threshold-gate` and
