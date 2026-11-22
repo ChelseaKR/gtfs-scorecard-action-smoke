@@ -18,6 +18,17 @@ here. The format follows
   deliberate `@v1` in `floating-major`, and that finding is meant to stay
   visible.
 
+### Changed
+
+- **The harness tests v1.6.1.** `protected-release`, `threshold-gate` and
+  `release-aliases` pinned v1.4.0 (`d800e0b4`), and `main` has been red on
+  every scheduled run since `v1` moved past it on 2026-10-09:
+  `release-aliases` found `v1` at the v1.5.x commit and
+  `latest-release-tested` found a newer release that no job runs, so the jobs
+  that execute the action were skipped. Both pins and `V1_6_1_COMMIT` now name
+  the commit v1.6.1 peels to, which carries the action fix for a refused feed
+  reporting an earlier step's grade (ChelseaKR/gtfs-scorecard#601).
+
 ### Verified
 
 - **The harness was measured rather than assumed.** "Written so that a broken
